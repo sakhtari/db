@@ -1,0 +1,1417 @@
+DB-ROCA-MIB DEFINITIONS ::= BEGIN
+
+-- IMPORTS: Include definitions from other mibs here, which is always
+-- the first item in a MIB file.
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, enterprises, Integer32, IpAddress, Counter64 FROM SNMPv2-SMI
+    DateAndTime, DisplayString, RowStatus FROM SNMPv2-TC;
+
+--
+-- A brief description and update information about this mib.
+-- See http://www.iana.org/assignments/enterprise-numbers
+--
+db-ag MODULE-IDENTITY
+    LAST-UPDATED "202107121400Z" -- 4:00 pm CEST, July 12th 2021
+    ORGANIZATION "DB AG"
+    CONTACT-INFO "Markus.Trommer@deutschebahn.com"
+    DESCRIPTION  "Railway Operator Component Agent MIB / ROCA-MIB"
+    REVISION     "202107121400Z" 
+    DESCRIPTION  "ROCA-MIB Version 1.13"
+    REVISION     "202107051800Z" 
+    DESCRIPTION  "ROCA-MIB Version 1.12"
+    REVISION     "201707140510Z"
+    DESCRIPTION  "ROCA-MIB Version 1.11"
+    REVISION     "201704181200Z"
+    DESCRIPTION  "ROCA-MIB Version 1.1"
+    REVISION     "201606070200Z"
+    DESCRIPTION  "ROCA-MIB Version 1.01"
+    REVISION     "201605101700Z"
+    DESCRIPTION  "ROCA-MIB Version 1.0"
+    ::= { enterprises 1794 }
+
+roca OBJECT IDENTIFIER       ::= { db-ag 102 }
+
+-- The ROCA group
+
+config    OBJECT IDENTIFIER  ::= { roca 1 }
+state     OBJECT IDENTIFIER  ::= { roca 2 }
+component OBJECT IDENTIFIER  ::= { roca 3 }
+log       OBJECT IDENTIFIER  ::= { roca 4 }
+alarm     OBJECT IDENTIFIER  ::= { roca 5 }
+
+-- The config group
+
+
+configSoftwareVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "The string describing the software version of the ROCA-MIB-agent."
+  ::= { config 1 }
+
+configConfigVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "The string describing the configuration version of the ROCA-MIB-agent."
+  ::= { config 2 }
+
+configMIBVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "This string describes the version of the ROCA-MIB specification implemented
+     by this agent, e.g. ROCA-MIB V1.1"
+  ::= { config 3 }
+
+-- remark: hardware version shall be given by standard MIB II object
+
+
+configUpdate OBJECT IDENTIFIER        ::= { config 4 }
+
+updateJobName OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "The string describing the last updateJobName used to update the component."
+  ::= { configUpdate 1 }
+
+updateVersionType OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        application(1),
+                        data(2),
+                        configuration(3)
+                      }
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "The value describing the last update version type performed on the component."
+  ::= { configUpdate 2 }
+
+updateVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "The string describing the last update version used to update the component."
+  ::= { configUpdate 3 }
+
+installationTime OBJECT-TYPE
+  SYNTAX      DateAndTime
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "The UTC date and time when the installation of the component update occurred."
+  ::= { configUpdate 4 }
+
+activationTime OBJECT-TYPE
+  SYNTAX      DateAndTime
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "The UTC date and time when the activation of the component update occurred."
+  ::= { configUpdate 5 }
+
+updateState OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        installationCompleted(1),
+                        installationFailed(2),
+                        activationCompleted(3),
+                        activationFailed(4 ),
+                        rollback(5)
+                      }
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "The current component update state."
+  ::= { configUpdate 6 }
+
+configControl OBJECT-TYPE
+  SYNTAX      INTEGER {
+                         unknown(0),
+                         active(1),  -- tries to (re-)activate the component
+                         restart(2), -- warm start
+                         reboot(3),  -- cold start
+                         sync(4),    -- initiates a time sync, if supported
+                         other(5)
+                      }
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "Writing this object with value restart(2), shuts down the component and causes a warmstart.
+     Writing other values than 1,2,3,4 is rejected and original value remains unchanged.
+     Value 0 and 5 represents unknown and other and can not be written.
+     Last write overwrites regardless of the interface used (PDI or SNMP).
+     Value has to be persistent and is not affected by software updates."
+  ::= { config 5 }
+
+
+
+-- state group
+
+
+stateGeneral OBJECT-TYPE
+  SYNTAX      INTEGER {
+                         unknown(0),
+                         active(1),
+                         standby(2),
+                         starting(3),
+                         powerdown(4),
+                         failure(5),
+                         other(6)
+                      }
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+     "This object describes the actual state of the railway
+      component represented by this instance of ROCA-MIB."
+  ::= { state 1 }
+
+stateTime OBJECT-TYPE
+  SYNTAX      DateAndTime
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "The internal UTC date and time of the railway component represented by
+     this instance of ROCA-MIB. Time can differ from official system time, if
+     there is no time synchronisation required by the component."
+  ::= { state 2 }
+
+
+-- component group
+
+controller OBJECT IDENTIFIER   ::= { component 1 }
+display    OBJECT IDENTIFIER   ::= { component 2 }
+hid        OBJECT IDENTIFIER   ::= { component 3 }
+databus    OBJECT IDENTIFIER   ::= { component 4 }
+
+
+-- controller group
+
+controllerNum OBJECT-TYPE
+  SYNTAX      Integer32 (0..255)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "controllerNum describes the number of controllers of the railway component
+     represented by this instance of ROCA-MIB."
+  ::= { controller 1 }
+
+
+-- controller table
+
+controllerStateTable OBJECT-TYPE
+  SYNTAX      SEQUENCE OF ControllerStateEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "The controller table tracks all existing controllers for this component."
+  ::= { controller 2 }
+
+controllerStateEntry OBJECT-TYPE
+  SYNTAX      ControllerStateEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "A controllerStateEntry contains information describing
+     one controller (CPU-module, MCU, ...) for the component."
+  INDEX { controllerStateIndex }
+  ::= { controllerStateTable 1 }
+
+ControllerStateEntry ::= SEQUENCE {
+      controllerStateIndex       Integer32,
+      controllerStateHWVersion   DisplayString,
+      controllerStateSWVersion   DisplayString,
+      controllerStateCfgVersion  DisplayString,
+      controllerStateErrorState  BITS,
+      controllerStateErrorID     INTEGER,
+      controllerStateErrorText   DisplayString,
+      controllerStateRowStatus   RowStatus,
+      controllerStateDescription OCTET STRING
+}
+
+
+controllerStateIndex OBJECT-TYPE
+  SYNTAX      Integer32 (0..255)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "controllerTableIndex describes uniquely each controller of the railway component
+     represented by this instance of ROCA-MIB."
+  ::= { controllerStateEntry 1 }
+
+controllerStateHWVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the hardware version of the specific controller.
+     Value has to be persistent and is not affected by software updates."
+  ::= { controllerStateEntry 2 }
+
+controllerStateSWVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the firmware version of the specific controller."
+  ::= { controllerStateEntry 3 }
+
+controllerStateCfgVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the configuration data version of the specific controller."
+  ::= { controllerStateEntry 4 }
+
+controllerStateErrorState OBJECT-TYPE
+  SYNTAX      BITS {
+                        unreachable(0),      -- controller is unreachable
+                        hardware(1),         -- hardware error detected by self diagnosis
+                        temp2low(2),         -- temperature is too low, system is halted or reduced to basic functionality while heating
+                        temp2high(3),        -- temperature is too high, system is possibly halted or reduced to basic functionality
+                        ifshort(4),          -- a short was detected on at least one interface of the controller
+                        ifopen(5),           -- an open, unterminated line was detected on at least one interface of the controller
+                        other(6),
+                        unknown(7)           -- state is not known, all other bits must be unset in this case
+                   }
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "This object describes the actual error state of the railway component's controller represented by this instance of ROCA-MIB.
+     Single bits describing the detailed error state of the component. Errors can appear and disappear independently."
+  ::= { controllerStateEntry 5 }
+
+controllerStateErrorID OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        no(1),
+                        yes(2)
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The value describes, if an error ID for the controller exists (yes or no).
+     Integer based error IDs itself have to be mapped application-specific from bit values in object controllerStateErrorState.
+     This mapping is not part of ROCA-MIB definitions given here."
+  ::= { controllerStateEntry 6 }
+
+controllerStateErrorText OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The string gives a comprehensive error text for the controller.
+     Text can include additional useful information for human readers like e. g. high temperature values."
+  ::= { controllerStateEntry 7 }
+
+controllerStateRowStatus OBJECT-TYPE
+  SYNTAX      RowStatus
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Status of this controller state table row."
+  ::= { controllerStateEntry 8 }
+
+controllerStateDescription OBJECT-TYPE
+  SYNTAX      OCTET STRING
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Detailed Description of the component."
+  ::= { controllerStateEntry 9 }
+
+
+-- display group
+
+displayNum OBJECT-TYPE
+   SYNTAX      Integer32 (0..255)
+   MAX-ACCESS  read-only
+   STATUS      current
+   DESCRIPTION
+     "displayNum describes the number of displays of the railway component
+      represented by this instance of ROCA-MIB."
+   ::= { display 1 }
+
+-- display table
+
+displayStateTable OBJECT-TYPE
+  SYNTAX      SEQUENCE OF DisplayStateEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "The display state table tracks all existing displays for this component."
+  ::= { display 2 }
+
+displayStateEntry   OBJECT-TYPE
+   SYNTAX      DisplayStateEntry
+   MAX-ACCESS  not-accessible
+   STATUS      current
+   DESCRIPTION
+     "A displayTabEntry contains information describing
+      one display (LED, TFT, ...) for the component."
+   INDEX { displayStateIndex }
+   ::= { displayStateTable 1 }
+
+DisplayStateEntry ::= SEQUENCE {
+          displayStateIndex              Integer32,
+          displayStateHWVersion          DisplayString,
+          displayStateSWVersion          DisplayString,
+          displayStateCfgVersion         DisplayString,
+          displayStateErrorState         BITS,
+          displayStateErrorID            INTEGER,
+          displayStateErrorText          DisplayString,
+          displayStateXPixel             Integer32,
+          displayStateYPixel             Integer32,
+          displayStateXDpi               Integer32,
+          displayStateYDpi               Integer32,
+          displayStateNumCol             Integer32,
+          displayStateBacklight          Integer32,
+          displayStateRowStatus          RowStatus,
+          displayStateBrightness         Integer32,
+          displayStateMaintenanceMode    INTEGER,
+          displayStateOrientation        INTEGER,
+          displayStateToggle             INTEGER,
+          displayStateContentOrientation INTEGER,
+          displayStateEntryDescription   OCTET STRING
+}
+
+
+displayStateIndex OBJECT-TYPE
+   SYNTAX      Integer32 (0..65535)
+   MAX-ACCESS  read-only
+   STATUS      current
+   DESCRIPTION
+     "displayStateIndex describes uniquely each display of the railway component
+      represented by this instance of ROCA-MIB."
+   ::= { displayStateEntry 1 }
+
+displayStateHWVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the hardware version of the specific display."
+  ::= { displayStateEntry 2 }
+
+displayStateSWVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the firmware version of the specific display."
+  ::= { displayStateEntry 3 }
+
+displayStateCfgVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the configuration data version of the specific display."
+  ::= { displayStateEntry 4 }
+
+displayStateErrorState OBJECT-TYPE
+  SYNTAX      BITS {
+                         unreachable(0),       -- display is unreachable
+                         hardware(1),          -- hardware error detected in display by self diagnosis
+                         temp2low(2),          -- temperature is too low, system is halted or reduced to basic functionality while heating
+                         temp2high(3),         -- temperature is too high, system is possibly halted or reduced to basic functionality
+                         ifshort(4),           -- a short was detected on at least one interface of the display
+                         ifopen(5),            -- an open, unterminated line was detected on at least one interface of display
+                         badsensor(6),         -- brightness sensor fails, e.g. blocked or damaged
+                         badbacklpower(7),     -- missing power for backlight
+                         baddisplpower(8),     -- missing power for displaying pixels
+                         pixelerrors(9),       -- too many pixel errors detected
+                         other(10),
+                         unknown(11)           -- state is not known, all other bits must be unset in this case
+                   }
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "This object describes the actual error state of the railway component's display represented by this instance of ROCA-MIB.
+     Single bits describing the detailed error state of the component. Errors can appear and disappear independently."
+  ::= { displayStateEntry 5 }
+
+displayStateErrorID OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        no(1),
+                        yes(2)
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The value describes, if an error ID for the display exists (yes or no).
+     Integer based error IDs itself have to be mapped application-specific from bit values in object displayStateErrorState.
+     This mapping is not part of ROCA-MIB definitions given here."
+  ::= { displayStateEntry 6 }
+
+displayStateErrorText OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The string gives a comprehensive error text for the display.
+     Text can include additional useful information for human readers like e. g. high temperature values."
+  ::= { displayStateEntry 7 }
+
+displayStateXPixel OBJECT-TYPE
+  SYNTAX      Integer32 (0..65535)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "XPixel value describes the number of available pixels in x direction for the display
+     represented by this instance of ROCA-MIB."
+  ::= { displayStateEntry 8 }
+
+displayStateYPixel OBJECT-TYPE
+  SYNTAX      Integer32 (0..65535)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "YPixel value describes the number of available pixels in y direction (height) for the display
+     represented by this instance of ROCA-MIB."
+  ::= { displayStateEntry 9 }
+
+displayStateXDpi OBJECT-TYPE
+  SYNTAX      Integer32 (0..8191)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "XDpi value describes the number of dots per inch available in x direction for the display
+     represented by this instance of ROCA-MIB."
+  ::= { displayStateEntry 10 }
+
+displayStateYDpi OBJECT-TYPE
+  SYNTAX      Integer32 (0..8191)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "YDpi value describes the number of dots per inch available in y direction for the display
+     represented by this instance of ROCA-MIB."
+  ::= { displayStateEntry 11 }
+
+displayStateNumCol OBJECT-TYPE
+  SYNTAX      Integer32 (0..128)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "NumCol value describes the number of colors available for the display
+     represented by this instance of ROCA-MIB. Values are always given as exponent to base 2, e.g. 24 for 16777216 colors."
+  ::= { displayStateEntry 12 }
+
+displayStateBacklight OBJECT-TYPE
+  SYNTAX      Integer32 (-1..100)
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Backlight value describes the actual brightness of the backlight for the display
+     represented by this instance of ROCA-MIB, scaled in percent between 0% and 100%.
+     Writing other values is rejected and original value remains unchanged.
+     Last write overwrites regardless of the interface used (PDI or SNMP).
+     Value -1 represents unknown and can not be written."
+  ::= { displayStateEntry 13 }
+
+displayStateRowStatus OBJECT-TYPE
+  SYNTAX      RowStatus
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Status of this display state table row."
+  ::= { displayStateEntry 14 }
+
+displayStateBrightness OBJECT-TYPE
+  SYNTAX  Integer32 (-1..100)
+  MAX-ACCESS read-create
+  STATUS  current
+  DESCRIPTION
+    "Brightness value describes the actual brightness of the display
+     represented by this instance of ROCA-MIB, scaled in percent between 0% and 100%.
+     Writing other values is rejected and original value remains unchanged.
+     Last write overwrites regardless of the interface used (PDI or SNMP).
+     Value -1 represents unknown and can not be written."
+     DEFVAL { 70 }
+  ::= { displayStateEntry 15 }
+
+displayStateMaintenanceMode OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),     -- unknown maintenance mode
+                        off(1),         -- maintenance mode off
+                        on(2),          -- maintenance mode on, show test screen
+                        wash(3)         -- pixel wash to avoid ghosting (shall include timeout (maximun run time))
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "LCD panel maintenance mode.
+     When value 3 is written, the value shall change back to 1 after wash timeout (e.g. 5 seconds) is reached.
+     Writing value 3 during wash mode resets the remaining time for wash mode to the defined timeout.
+     Writing other values than 1,2,3 is rejected and original value remains unchanged.
+     Last write overwrites regardless of the interface used (PDI or SNMP).
+     Value 0 represents unknown and can not be written."
+  ::= { displayStateEntry 16 }
+
+displayStateOrientation OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown (0),
+                        portrait(1),        -- portrait
+                        landscape(2),       -- landscape
+                        portraitrear(3),    -- portrait (rear projection)
+                        landscaperear(4)    -- landscape (rear projection)
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Physical orientation of the display as it is mounted.
+     Writing other values than 1,2,3,4 is rejected and original value remains unchanged.
+     Value 0 represents unknown and can not be written.
+     Last write overwrites regardless of the interface used (PDI or SNMP).
+     Value has to be persistent and is not affected by software updates."
+  ::= { displayStateEntry 17 }
+
+displayStateToggle OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),     -- unknown state dual sided display
+                        normal(1),      -- dual sided display normal (mounted according to standard)
+                        invers(2)       -- dual sided display toggle display sides
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "In case of reverse mounted dual sided displays used to toggle the panel direction.
+     For single sided displays value is always normal(1).
+     Writing other values than 1,2 is rejected and original value remains unchanged.
+     Value 0 represents unknown and can not be written.
+     Last write overwrites regardless of the interface used (PDI or SNMP).
+     Value has to be persistent and is not affected by software updates."
+  ::= { displayStateEntry 18 }
+
+displayStateContentOrientation OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown (0),
+                        normal(1),      --   0 Degrees
+                        right(2),       --  90 Degrees
+                        inverted(3),    -- 180 Degrees
+                        left(4)         -- 270 Degrees
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Content orientation of the displays content.
+     Writing other values than 1,2,3,4 is rejected and original value remains unchanged.
+     Value 0 represents unknown and can not be written.
+     Last write overwrites regardless of the interface used (PDI or SNMP).
+     Value has to be persistent and is not affected by software updates."
+  ::= { displayStateEntry 19 }
+
+displayStateEntryDescription OBJECT-TYPE
+  SYNTAX      OCTET STRING
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Detailed Description of the component."
+  ::= { displayStateEntry 20 }
+
+
+
+-- hid group
+
+hidNum OBJECT-TYPE
+  SYNTAX      Integer32 (0..255)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "hidNum describes the number of HIDs of the railway component
+     represented by this instance of ROCA-MIB."
+  ::= { hid 1 }
+
+-- human interface device (hid) table
+
+hidStateTable OBJECT-TYPE
+  SYNTAX      SEQUENCE OF HidStateEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "The hid state table tracks all existing human interface devices (HIDs) for this component."
+  ::= { hid 2 }
+
+hidStateEntry OBJECT-TYPE
+  SYNTAX      HidStateEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "A hidTabEntry contains information describing
+     one human interface device (HID) for the component
+     (keyboard, trackball, mouse, touch-field, ...)."
+  INDEX { hidStateIndex }
+  ::= { hidStateTable 1 }
+
+HidStateEntry ::= SEQUENCE {
+          hidStateIndex      Integer32,
+          hidStateHWVersion  DisplayString,
+          hidStateSWVersion  DisplayString,
+          hidStateCfgVersion DisplayString,
+          hidStateErrorState BITS,
+          hidStateErrorID    INTEGER,
+          hidStateErrorText  DisplayString,
+          hidStateStrokes    Integer32,
+          hidStateRowStatus  RowStatus,
+          hidStateEntryDescription OCTET STRING
+}
+
+
+hidStateIndex OBJECT-TYPE
+  SYNTAX      Integer32 (0..255)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "hidTabIndex describes uniquely each human interface device
+     of the railway component represented by this instance of ROCA-MIB."
+  ::= { hidStateEntry 1 }
+
+hidStateHWVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the hardware version of the specific human interface device."
+  ::= { hidStateEntry 2 }
+
+hidStateSWVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the firmware version of the specific human interface device."
+  ::= { hidStateEntry 3 }
+
+hidStateCfgVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the configuration data version of the specific human interface device."
+  ::= { hidStateEntry 4 }
+
+hidStateErrorState OBJECT-TYPE
+  SYNTAX      BITS {
+                        unreachable(0),       -- human interface device (HID) is unreachable
+                        hardware(1),          -- hardware error detected in human interface device by self diagnosis
+                        temp2low(2),          -- temperature is too low, system is halted or reduced to basic functionality while heating
+                        temp2high(3),         -- temperature is too high, system is possibly halted or reduced to basic functionality
+                        ifshort(4),           -- a short was detected on at least one interface of the human interface device
+                        ifopen(5),            -- an open, unterminated line was detected on at least one interface of HID
+                        locked(6),            -- locked keys, touch-fields, trackballs, ...
+                        keysshorted(7),       -- keys permanently shorted ...
+                        other(8),
+                        unknown(9)            -- state is not known, all other bits must be unset in this case
+                   }
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "This object describes the actual error state of the component's HID represented by this instance of ROCA-MIB.
+     Single bits describing the detailed error state of the HID. Errors can appear and disappear independently."
+  ::= { hidStateEntry 5 }
+
+hidStateErrorID OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        no(1),
+                        yes(2)
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The value describes, if an error ID for the HID exists (yes or no).
+     Integer based error IDs itself have to be mapped application-specific from bit values in    hidStateErrorState.
+     This mapping is not part of ROCA-MIB definitions given here."
+  ::= { hidStateEntry 6 }
+
+hidStateErrorText OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The string gives additional information for the given error state.
+     Text can include additional useful information for human readers like e. g. high temperature values."
+  ::= { hidStateEntry 7 }
+
+hidStateStrokes OBJECT-TYPE
+  SYNTAX      Integer32 (0..99999999)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "This value describes the number of key strokes, touch actions or touchpad movements since last restart of ROCA-MIB-agent
+     for the human device interface (hid) represented by this hid table entry."
+  ::= { hidStateEntry 8 }
+
+hidStateRowStatus OBJECT-TYPE
+  SYNTAX      RowStatus
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Status of this human interface table row."
+  ::= { hidStateEntry 9 }
+
+hidStateEntryDescription OBJECT-TYPE
+  SYNTAX      OCTET STRING
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Detailed Description of the component."
+  ::= { hidStateEntry 10 }
+
+
+-- data bus group
+--    containing all data busses for the component, which are not managed by MIBs
+--    listed in SNMP-MIB list sysORTable according to RFC 3418
+
+databusNum OBJECT-TYPE
+  SYNTAX      Integer32 (0..255)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Object databusNum describes the number of data buses of the railway component
+     represented by this instance of ROCA-MIB, which are not managed by MIBs listed
+     in SNMP-MIB list sysORTable according to RFC 3418,
+     e.g. RS485 lines or LVDS based video lines."
+  ::= { databus 1 }
+
+-- databus table
+
+databusStateTable OBJECT-TYPE
+  SYNTAX      SEQUENCE OF DatabusStateEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "The databus state table tracks all existing data buses for this component."
+  ::= { databus 2 }
+
+databusStateEntry OBJECT-TYPE
+  SYNTAX      DatabusStateEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "A databusTabEntry contains information describing
+     one data bus (RS 422, I2C, eDP, ...) for the component."
+  INDEX { databusStateIndex }
+  ::= { databusStateTable 1 }
+
+DatabusStateEntry ::= SEQUENCE {
+          databusStateIndex            Integer32,
+          databusStateHWVersion        DisplayString,
+          databusStateSWVersion        DisplayString,
+          databusStateCfgVersion       DisplayString,
+          databusStateErrorState       BITS,
+          databusStateErrorID          INTEGER,
+          databusStateErrorText        DisplayString,
+          databusStateMaxMasters       Integer32,
+          databusStateMaxSlaves        Integer32,
+          databusStateNumMasters       Integer32,
+          databusStateNumSlaves        Integer32,
+          databusStateTotalPackets     Counter64,
+          databusStateBadChksum        Counter64,
+          databusStateTooShort         Counter64,
+          databusStateTooLong          Counter64,
+          databusStateUnknown          Counter64,
+          databusStateTimeouts         Counter64,
+          databusStateRetries          Counter64,
+          databusStateMBadChksum       Counter64,
+          databusStateMTooShort        Counter64,
+          databusStateMTooLong         Counter64,
+          databusStateMUnknown         Counter64,
+          databusStateMTimeouts        Counter64,
+          databusStateMRetries         Counter64,
+          databusStateControllerID     Integer32,
+          databusStateRowStatus        RowStatus,
+          databusStateEntryDescription OCTET STRING
+}
+
+
+databusStateIndex OBJECT-TYPE
+  SYNTAX      Integer32 (0..65535)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "databusStateIndex describes uniquely each data bus of the railway component
+     represented by this instance of ROCA-MIB."
+  ::= { databusStateEntry 1 }
+
+databusStateHWVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the hardware version of the specific data bus."
+  ::= { databusStateEntry 2 }
+
+databusStateSWVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the firmware version of the specific data bus."
+  ::= { databusStateEntry 3 }
+
+databusStateCfgVersion OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "String describing the configuration data version of the specific databus."
+  ::= { databusStateEntry 4 }
+
+databusStateErrorState  OBJECT-TYPE
+  SYNTAX      BITS {
+                        unreachable(0),       -- data bus is unreachable
+                        hardware(1),          -- hardware error detected in data bus by self diagnosis
+                        temp2low(2),          -- at least one bus master has too low temperature, system is halted or reduced to basic functionality while heating
+                        temp2high(3),         -- at least one bus master has too high temperature, system is possibly halted or reduced to basic functionality
+                        txshort(4),           -- a short was detected on a transmission line of data bus
+                        txopen(5),            -- an open, unterminated transmission line was detected
+                        rxshort(6),           -- a short was detected on a receiver line of data bus
+                        rxopen(7),            -- an open, unterminated receiver line was detected
+                        overvoltage(8),       -- voltage on data bus too high, system is possibly halted
+                        subvoltage(9),        -- voltage on data bus too low, system is possibly halted
+                        other(10),
+                        unknown(11)           -- state is not known, all other bits must be unset in this case
+                   }
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "This object describes the actual error state of the railway component's data bus represented by this instance of ROCA-MIB.
+     Single bits describing the detailed error state of the component. Errors can appear and disappear independently."
+  ::= { databusStateEntry 5 }
+
+databusStateErrorID OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        no(1),
+                        yes(2)
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The value describes, if an error ID for the data bus exists (yes or no).
+     Integer based error IDs itself have to be mapped application-specific from bit values in object databusStateErrorState.
+     This mapping is not part of ROCA-MIB definitions given here."
+  ::= { databusStateEntry 6 }
+
+databusStateErrorText OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The string gives a comprehensive error text for the data bus.
+     Text can include additional useful information for human readers like e. g. high temperature values."
+  ::= { databusStateEntry 7 }
+
+databusStateMaxMasters OBJECT-TYPE
+  SYNTAX      Integer32 (0..65535)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "MaxMasters value describes the maximum possible number of master participants for the data bus
+     represented by this instance of ROCA-MIB, e.g. one for a RS232 line."
+  ::= { databusStateEntry 8 }
+
+databusStateMaxSlaves OBJECT-TYPE
+  SYNTAX      Integer32 (0..65535)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "MaxSlaves value describes the maximum possible number of slave participants for the data bus
+     represented by this instance of ROCA-MIB, e.g. 127 for a system with 7 bit addresses and one master participant."
+  ::= { databusStateEntry 9 }
+
+databusStateNumMasters OBJECT-TYPE
+  SYNTAX      Integer32 (0..65535)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "NumMasters value describes the number of detected master participants at the moment for the given data bus,
+     represented by this instance of ROCA-MIB, e.g. one for a RS485 line."
+  ::= { databusStateEntry 10 }
+
+databusStateNumSlaves OBJECT-TYPE
+  SYNTAX      Integer32 (0..65535)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "NumSlaves value describes the number of detected slave participants at the moment for the given data bus
+     represented by this instance of ROCA-MIB, e.g. 27 for a system with 7 bit addresses and one master participant."
+  ::= { databusStateEntry 11 }
+
+databusStateTotalPackets OBJECT-TYPE
+  SYNTAX       Counter64
+  MAX-ACCESS   read-only
+  STATUS       current
+  DESCRIPTION
+    "TotalPackets value adds together for all master and slave participants the total number of packets transmitted over the given data bus
+     represented by this instance of ROCA-MIB. Includes defect packets broadcasts etc.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 12 }
+
+databusStateBadChksum OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "BadChksum value counts for all master and slave participants the number of packets received with
+     a bad checksum for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 13 }
+
+databusStateTooShort OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "TooShort value counts for all master and slave participants the number of too short packets received
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 14 }
+
+databusStateTooLong OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "TooLong value counts for all master and slave participants the number of too long packets received
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 15 }
+
+databusStateUnknown OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Unknown value counts for all master and slave participants the number of valid packets with unknown content received
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 16 }
+
+databusStateTimeouts OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Timeouts value counts for all master and slave participants the number of transmission timeouts
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 17 }
+
+databusStateRetries OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Retries value counts for all master and slave participants the number of transmission retries
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 18 }
+
+databusStateMBadChksum OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "MBadChksum value counts for all master participants the number of packets received with
+     a bad checksum for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 19 }
+
+databusStateMTooShort OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "TooShort value counts for all master participants the number of too short packets received
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 20 }
+
+databusStateMTooLong OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "TooLong value counts for all master participants the number of too long packets received
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 21 }
+
+databusStateMUnknown OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Unknown value counts for all master participants the number of valid packets with unknown content received
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 22 }
+
+databusStateMTimeouts OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Timeouts value counts for all master participants the number of transmission timeouts
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 23 }
+
+databusStateMRetries OBJECT-TYPE
+  SYNTAX      Counter64
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Retries value counts for all master participants the number of transmission retries
+     for the given data bus represented by this instance of ROCA-MIB.
+     Value is set to zero, when component is (re)started."
+  ::= { databusStateEntry 24 }
+
+databusStateControllerID OBJECT-TYPE
+  SYNTAX      Integer32 (0..255)
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "ControllerID object refers to one specific controller in controllerStateTable,
+     which is connected to the given data bus represented by this instance of ROCA-MIB.
+     It contains an index value as defined in object controllerStateIndex."
+  ::= { databusStateEntry 25 }
+
+databusStateRowStatus OBJECT-TYPE
+  SYNTAX      RowStatus
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Status of this data bus state table row."
+  ::= { databusStateEntry 26 }
+
+databusStateEntryDescription OBJECT-TYPE
+  SYNTAX      OCTET STRING
+  MAX-ACCESS  read-only
+  STATUS      current
+  DESCRIPTION
+    "Detailed Description of the component."
+  ::= { databusStateEntry 27 }
+
+
+-- logging group
+
+logLastRefresh OBJECT-TYPE
+  SYNTAX      DateAndTime
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "The (internal) UTC date and time when the last logging entry for the component was written to ROCA-MIB."
+  ::= { log 1 }
+
+logControl OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        standard(1),
+                        reset(2),
+                        enhanced(3),
+                        off(4),
+                        other(5)
+                      }
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "Writing this object with value reset(2) clears all logging entries and restarts a new collection for the component.
+     Writing other values than 1,2,3,4 is rejected and original value remains unchanged.
+     Values 0 and 5 represents unknown and other and can not be written.
+     Last write overwrites regardless of the interface used (PDI or SNMP)."
+  ::= { log 2 }
+
+logLevel OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        fatal(1), -- mimimum log level
+                        error(2),
+                        failure(3),
+                        warnings(4),
+                        infos(5),
+                        debug(6), -- maximum log level
+                        other(7)
+                      }
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "Writing this object defines the current log level. After a change of logLevel,
+     previous logging entries stay in place unchanged. Use object logControl for cleaning up old logs
+     after a change in log level.
+     Writing other values than 1,2,3,4,5,6 is rejected and original value remains unchanged.
+     Values 0 and 7 represents unknown and other and can not be written.
+     Last write overwrites regardless of the interface used (PDI or SNMP).
+     Value has to be persistent and is not affected by software updates."
+  ::= { log 3 }
+
+logEntryCount OBJECT-TYPE
+  SYNTAX      Integer32 (0..65535)
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "Number of Entries in the log table."
+  ::= { log 4 }
+
+
+logTable OBJECT-TYPE
+  SYNTAX      SEQUENCE OF LogEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "The logTable tracks all occurring events."
+  ::= { log 5 }
+
+logEntry OBJECT-TYPE
+  SYNTAX      LogEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "A logEntry contains information that are to be stored according to the current logLevel."
+  INDEX { logIndex }
+  ::= { logTable 1 }
+
+LogEntry ::= SEQUENCE {
+          logIndex             Integer32,
+          logCode              Integer32,
+          logDescription       DisplayString,
+          logTime              DateAndTime,
+          logOID               OBJECT IDENTIFIER,
+          logMessageLevel      INTEGER,
+          logRowStatus         RowStatus
+}
+
+logIndex OBJECT-TYPE
+  SYNTAX      Integer32 (0..65535)
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "logIndex identifies the current logging entry."
+  ::= { logEntry 1 }
+
+logCode OBJECT-TYPE
+  SYNTAX      Integer32 (0..2147483647)
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "logCode describes the logging reason for the current logging entry."
+  ::= { logEntry 2 }
+
+logDescription OBJECT-TYPE
+  SYNTAX      DisplayString (SIZE (0..255))
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The string describes the logging reason for the current logging entry."
+  ::= { logEntry 3 }
+
+logTime OBJECT-TYPE
+  SYNTAX      DateAndTime
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The UTC date and time when the this logging entry was generated."
+  ::= { logEntry 4 }
+
+logOID   OBJECT-TYPE
+  SYNTAX      OBJECT IDENTIFIER
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "logOID contains optionally the OID that uniquely identifies an object connected with the current entry."
+  ::= { logEntry 5 }
+
+logMessageLevel OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        fatal(1),
+                        error(2),
+                        failure(3),
+                        warnings(4),
+                        infos(5),
+                        debug(6),
+                        other(7)
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "This object defines the log level for this specific logging entry. Can be used for filtering."
+  ::= { logEntry 6 }
+
+logRowStatus OBJECT-TYPE
+  SYNTAX      RowStatus
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Status of this log table row."
+  ::= { logEntry 7 }
+
+-- alarm group
+
+alarmLastEvent OBJECT-TYPE
+  SYNTAX      DateAndTime
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "The UTC date and time when the last alarm was generated by ROCA-MIB entity."
+  ::= { alarm 1 }
+
+alarmControl OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        active(1),
+                        reset(2), -- deletes/deleting all alarm entries
+                        off(3),   -- stops sending alarms
+                        other(4)
+                      }
+  MAX-ACCESS  read-write
+  STATUS      current
+  DESCRIPTION
+    "Writing this object with value reset(2) clears all alarm entries for component."
+  ::= { alarm 2 }
+
+
+alarmSubscriberTable OBJECT-TYPE
+  SYNTAX      SEQUENCE OF AlarmSubscriberEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "The alarmSubscriberTable tracks all subscriptions for alarms (SNMP-Traps)."
+  ::= { alarm 3 }
+
+alarmSubscriberEntry OBJECT-TYPE
+  SYNTAX      AlarmSubscriberEntry
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "A alarmSubscriberEntry contains information describing
+     an alarm subscription for a given IP address/port."
+  INDEX { alarmSubscriberIndex }
+  ::= { alarmSubscriberTable 1 }
+
+AlarmSubscriberEntry ::= SEQUENCE {
+          alarmSubscriberIndex             Integer32,
+          alarmSubscriberIpAddress         IpAddress,
+          alarmSubscriberUdpPort           Integer32,
+          alarmSubscriberOID               OBJECT IDENTIFIER,
+          alarmSubscriberAction            INTEGER,
+          alarmSubscriberValue             OCTET STRING,
+          alarmSubscriberLastTime          DateAndTime,
+          alarmSubscriberRepeatCount       Integer32,
+          alarmSubscriberID                Integer32,
+          alarmSubscriberRowStatus         RowStatus
+}
+
+alarmSubscriberIndex OBJECT-TYPE
+  SYNTAX      Integer32 (0..4096)
+  MAX-ACCESS  not-accessible
+  STATUS      current
+  DESCRIPTION
+    "alarmSubscriberIndex identifies the current alarm subscription."
+  ::= { alarmSubscriberEntry 1 }
+
+alarmSubscriberIpAddress OBJECT-TYPE
+  SYNTAX      IpAddress
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Specifies the unit-local IP address of device, which wants to be alarmed."
+  ::= { alarmSubscriberEntry 2 }
+
+alarmSubscriberUdpPort OBJECT-TYPE
+  SYNTAX      Integer32 (1..65535)
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Specifies the unit-local UDP port number of the device, which wants to be alarmed."
+  ::= { alarmSubscriberEntry 3 }
+
+alarmSubscriberOID OBJECT-TYPE
+  SYNTAX      OBJECT IDENTIFIER
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "alarmSubscriberOID contains the OID that uniquely identifies
+     an ROCA-MIB or a standard MIB object for an alarm."
+  ::= { alarmSubscriberEntry 4 }
+
+alarmSubscriberAction OBJECT-TYPE
+  SYNTAX      INTEGER {
+                        unknown(0),
+                        equal(1),
+                        notequal(2),
+                        bigger(3),
+                        less(4),
+                        exceeds(5),
+                        decreases(6),
+                        exists(7),    -- OID
+                        notexists(8), -- OID
+                        firstcreation(9), -- OID
+                        changes (10), -- OID, value gives up/down threshold
+                        changedinsecs (11), -- OID, value gives seconds for time window
+                        unchanged4secs (12) -- OID, value gives seconds
+                      }
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Action value in relation to value and or OID."
+  ::= { alarmSubscriberEntry 5 }
+
+alarmSubscriberValue OBJECT-TYPE
+  SYNTAX      OCTET STRING (SIZE (0..255))
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Alarm value for action defined in alarmSubscriberAction."
+  ::= { alarmSubscriberEntry 6 }
+
+alarmSubscriberLastTime OBJECT-TYPE
+  SYNTAX      DateAndTime
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "The UTC date and time when the last alarm was generated for the current event."
+  ::= { alarmSubscriberEntry 7 }
+
+alarmSubscriberRepeatCount OBJECT-TYPE
+  SYNTAX      Integer32 (-1..99999999)
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Specifies the number of time, this alarm should be generated. Value -1 means no limit.
+     Rewriting it with a value resets internal repeat counter."
+  ::= { alarmSubscriberEntry 8 }
+
+alarmSubscriberID OBJECT-TYPE
+  SYNTAX      Integer32 (0..255)
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Specifies an identifier, which uniquely describes the subscriber instance for this event, typically a SNMP manager instance.
+     Subscribers must be preconfigured in this ROCA-MIB agent with the same SNMPv3 username and password as in the related SNMP manager instance.
+     SNMP usernames and passwords do not appear in this MIB.
+     If configured, a value of 0 describes an unknown subscriber. A ROCA-MIB agent can set this value in order to mark rows in this table,
+     which have no corresponding subscriber."
+  ::= { alarmSubscriberEntry 9 }
+
+alarmSubscriberRowStatus OBJECT-TYPE
+  SYNTAX      RowStatus
+  MAX-ACCESS  read-create
+  STATUS      current
+  DESCRIPTION
+    "Status of this alarm subscriber table row."
+  ::= { alarmSubscriberEntry 10 }
+
+
+END

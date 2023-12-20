@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Content für alle Phasen außer Bereitstellung -->
+<LayoutContent name="zla">
+    <Pages>
+        <Page>
+            <Texts>
+                <Text name="1" value="42"/>
+                <Text name="2" value="ICE 1337"/>
+                <Text name="3" value="Basel Bad Bf - Freiburg(Brsg) - Offenburg - Baden-Baden - Karlsruhe Hbf - Mannheim Hbf - Frankfurt(M)Hbf - Hanau - Fulda - Kassel-Wilh. - Göttingen - Hildesheim Hbf - Braunschweig - Wolfsburg Hbf - Berlin-Spandau - Berlin Hbf"/>
+                <Text name="5" value=" Ostbahnhof"/>
+                <Text name="15" value="1"/>
+            </Texts>
+        </Page>
+    </Pages>
+</LayoutContent>

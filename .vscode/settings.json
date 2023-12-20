@@ -1,0 +1,6 @@
+{
+    "gopls": {
+
+    },
+    "go.useLanguageServer": true
+}

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ICE Exterior Display</title>
+    <style>
+        /* Define CSS for the display */
+        .layout {
+            width: 800px; /* Adjust the width as needed */
+            height: 150px; /* Adjust the height as needed */
+            background-color: #000; /* Black background */
+            border: 2px solid #fff; /* White border */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            color: #ffA500; /* Orange text */
+        }
+        
+        /* Define a CSS class for scrolling text */
+        .scrolling-text {
+            white-space: nowrap;
+            overflow: hidden;
+            width: 100%;
+        }
+        .scrolling-text-text {
+            white-space: nowrap;
+            overflow: visible;
+            animation: scrollText 40s linear infinite;
+        }
+        @keyframes scrollText {
+            0% {
+                transform: translateX(100%);
+            }
+            100% {
+                transform: translateX(-1200%);
+            }
+        }
+
+        /* Additional styles for text elements with borders */
+        .text-border {
+            border: 1px solid #ffA500; /* Border color matches text color */
+        }
+        
+        .text-align-center {
+            text-align: center;
+        }
+        
+        .text-align-left {
+            text-align: left;
+        }
+
+        .no-left-border {
+            border-left: none;
+        }
+        
+        .no-bottom-border {
+            border-bottom: none;
+        }
+        
+        .no-right-border {
+            border-right: none;
+        }
+        
+        .no-top-border {
+            border-top: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="display" id="layout_body" ></div>
+    <script>
+        const eventSource = new EventSource('/events');
+        eventSource.onmessage = function(event) {
+            const layoutBody = document.getElementById('layout_body');
+            layoutBody.innerHTML = event.data;
+        };
+    </script>
+</body>
+</html>
+
+
+

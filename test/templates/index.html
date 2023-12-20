@@ -1,0 +1,37 @@
+
+To view both websites from the web and web2 containers on a single web page, you can modify your HTML and use iframes to embed the content of both websites into a single page. Here's an example modification to your HTML:
+
+html
+Copy code
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Example</title>
+</head>
+<body>
+    <h1>Server-Sent Events Example</h1>
+    
+    <h2>Web Container:</h2>
+    <div id="sse-data"></div>
+    
+    <h2>Web2 Container:</h2>
+    <div id="web2-data"></div>
+    
+    <script>
+        // EventSource for Web Container
+        const eventSource = new EventSource('/sse');
+        eventSource.onmessage = function(event) {
+            document.getElementById('sse-data').innerHTML = 'Data from server: ' + event.data;
+        };
+
+        // You may need to adjust the URL depending on your Flask routes in the web2 container.
+        const eventSourceWeb2 = new EventSource('/web2_sse');
+        eventSourceWeb2.onmessage = function(event) {
+            document.getElementById('web2-data').innerHTML = 'Data from server (web2): ' + event.data;
+        };
+    </script>
+    
+</body>
+</html>

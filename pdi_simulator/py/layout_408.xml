@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout für die Aussenanzeiger im ICE3neo ab EPC-Version v01.39 -->
+<LayoutDefinition deviceType="1" displayWidth="144" displayHeight="64">
+    <Layouts>
+        <Layout name="zla">
+            <Pages>
+                <Page>
+                    <Panels>
+                        <Panel x="0" y="0" width="144" height="64">
+                            <Texts>
+                                <!-- Wagenordnungsnummer -->
+                                <Text name="1" x="112" y="15" width="30" height="28" fontlist="3" alignX="Center" alignY="Center" RotationType="None" border="LBT" />
+                                <!-- Gattung und Zugnummer -->
+                                <Text name="2" x="0" y="0" width="112" height="15" fontlist="1" alignX="Left" alignY="Center" RotationType="None" border="BR" />
+                                <!-- Zuglauf mit Scrolling -->
+                                <Text name="3" x="0" y="22" width="110" height="15" fontlist="5" alignX="Left" alignY="Center" RotationType="Overflow" border="" />
+                                <!-- Zuglauf ohne Scrolling -->
+                                <Text name="4" x="0" y="22" width="110" height="15" fontlist="5" alignX="Left" alignY="Center" RotationType="None" border="" />
+                                <!-- Endbahnhof -->
+                                <Text name="5" x="0" y="47" width="144" height="17" fontlist="6" alignX="Left" alignY="Center" RotationType="None" border="" />
+                                <!-- Wagensymbol -->
+                                <Text name="15" x="113" y="0" width="31" height="14" fontlist="2" alignX="Left" alignY="Center" RotationType="None" border="" />
+                            </Texts>
+                        </Panel>
+                    </Panels>
+                </Page>
+            </Pages>
+        </Layout>
+        <!-- Layout for big coach number -->
+        <Layout name="bigwon">
+            <Pages>
+                <Page>
+                    <Panels>
+                        <Panel width="144" height="64" x="0" y="0">
+                            <Texts>
+                                <!-- Coach number -->
+                                <Text name="7" x="82" y="0" width="62" height="64" fontlist="7" alignX="Right" alignY="Center" RotationType="None"/>
+                                <!-- Coach symbol -->
+                                <Text name="8" x="0" y="34" width="75" height="30" fontlist="8" alignX="Left" alignY="Center" RotationType="None"/>
+                            </Texts>
+                        </Panel>
+                    </Panels>
+                </Page>
+            </Pages>
+        </Layout>
+    </Layouts>
+</LayoutDefinition>
